@@ -18,6 +18,7 @@ public class Codelength {
         try {
             // Process the text and get the processed text
             String text = preprocessText(infile);
+            text = addPaddingToText(text);
             // Compute the length of the encoded text for each number of characters
             int singleCharLength = calculateEncodedLength(text, 1);
             int doubleCharLength = calculateEncodedLength(text, 2);
@@ -43,7 +44,7 @@ public class Codelength {
     private static String preprocessText(File infile) throws IOException {
         String content = Files.readString(infile.toPath(), Charset.defaultCharset());
         content = content.replaceAll(REGEX_PATTERN, "").toLowerCase();
-        return addPaddingToText(content);
+        return content;
     }
 
     /**
@@ -61,6 +62,7 @@ public class Codelength {
         String encodedString = encodeText(huffmanCodes, text, n);
         return getEncodedStringLength(huffmanCodes, encodedString, n).length();
     }
+
 
     /**
      * Generate the frequency table map
@@ -92,6 +94,9 @@ public class Codelength {
     private static String getEncodedStringLength(HashMap<String, String> codes, String text, int n) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < text.length(); i += n) {
+            if (i + n > text.length()) {
+                n = text.length() - i;
+            }
             String character = text.substring(i, i + n);
             String code = codes.get(character);
             builder.append(code);
@@ -105,6 +110,14 @@ public class Codelength {
      * @return Huffman tree
      */
     private static HuffmanNode buildHuffmanTree(PriorityQueue<HuffmanNode> priorityQueue) {
+
+        if(priorityQueue.size() == 1){
+            HuffmanNode node = priorityQueue.poll();
+            HuffmanNode newNode = new HuffmanNode(node.frequency);
+            newNode.left = node;
+            return newNode;
+        }
+
         while (priorityQueue.size() > 1) {
             HuffmanNode left = priorityQueue.poll();
             HuffmanNode right = priorityQueue.poll();
@@ -113,6 +126,7 @@ public class Codelength {
             parent.right = right;
             priorityQueue.offer(parent);
         }
+
         return priorityQueue.poll();
     }
 
@@ -141,7 +155,9 @@ public class Codelength {
             return;
         }
         generateCodes(node.left, code + "0", huffmanCodes);
-        generateCodes(node.right, code + "1", huffmanCodes);
+        if (node.right != null) {
+            generateCodes(node.right, code + "1", huffmanCodes);
+        }
     }
 
     /**
@@ -167,14 +183,19 @@ public class Codelength {
     private static String encodeText(HashMap<String, String> huffmanCodes, String text, int n) {
         StringBuilder encodedText = new StringBuilder();
         for (int i = 0; i < text.length(); i += n) {
-            String substring = text.substring(i, Math.min(i + n, text.length()));
-            encodedText.append(huffmanCodes.get(substring));
+            int endIndex = i + n;
+            String substring = text.substring(i, endIndex);
+            String code = huffmanCodes.get(substring);
+            if (code != null) {
+                encodedText.append(code);
+            }
         }
         return encodedText.toString();
     }
 
     /**
-     * Add characters to the text to make it divisible by 6 (as the assignment requires)
+     * Add characters to the text to make it divisible by n
+     *
      * @param processedText Text
      * @return Text with added characters
      */
